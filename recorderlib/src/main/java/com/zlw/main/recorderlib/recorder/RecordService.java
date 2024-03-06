@@ -1,9 +1,15 @@
 package com.zlw.main.recorderlib.recorder;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
 
 import com.zlw.main.recorderlib.recorder.listener.RecordDataListener;
@@ -14,6 +20,10 @@ import com.zlw.main.recorderlib.recorder.listener.RecordStateListener;
 import com.zlw.main.recorderlib.utils.FileUtils;
 import com.zlw.main.recorderlib.utils.Logger;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 
@@ -44,8 +54,11 @@ public class RecordService extends Service {
 
     private final static String PARAM_PATH = "path";
 
+    public static final String CHANNEL_ID = "ForegroundServiceChannel";
 
-    public RecordService() {
+
+    public RecordService() throws FileNotFoundException {
+
     }
 
     @Override
@@ -58,6 +71,22 @@ public class RecordService extends Service {
         if (intent == null) {
             return super.onStartCommand(intent, flags, startId);
         }
+        /*
+        Notification.Builder builder = new Notification.Builder(this.getApplicationContext()); //获取一个Notification构造器
+        Intent nfIntent = new Intent(this, RecordService.class);
+        builder.setContentIntent(PendingIntent.
+                getActivity(this, 0, nfIntent, 0)) // 设置PendingIntent
+                //.setLargeIcon(BitmapFactory.decodeResource(this.getResources(), R.mipmap.ic_launcher)) // 设置下拉列表中的图标(大图标)
+                .setContentTitle("下拉列表中的Title") // 设置下拉列表里的标题
+                //.setSmallIcon(R.mipmap.ic_launcher) // 设置状态栏内的小图标
+                .setContentText("要显示的内容") // 设置上下文内容
+                .setWhen(System.currentTimeMillis()); // 设置该通知发生的时间
+
+        Notification notification = builder.build(); // 获取构建好的Notification
+        notification.defaults = Notification.DEFAULT_SOUND; //设置为默认的声音
+
+        startForeground(110, notification);// 开始前台服务
+        */
         Bundle bundle = intent.getExtras();
         if (bundle != null && bundle.containsKey(ACTION_NAME)) {
             switch (bundle.getInt(ACTION_NAME, ACTION_INVALID)) {
@@ -81,7 +110,6 @@ public class RecordService extends Service {
 
         return super.onStartCommand(intent, flags, startId);
     }
-
 
     public static void startRecording(Context context) {
         Intent intent = new Intent(context, RecordService.class);

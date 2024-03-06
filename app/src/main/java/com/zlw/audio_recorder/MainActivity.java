@@ -1,6 +1,11 @@
 package com.zlw.audio_recorder;
 
+import static android.app.PendingIntent.getActivity;
+
+import static androidx.core.app.ServiceCompat.stopForeground;
+
 import android.app.Activity;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.projection.MediaProjection;
@@ -19,6 +24,7 @@ import android.widget.Toast;
 import androidx.activity.ComponentActivity;
 import androidx.activity.result.contract.ActivityResultContract;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 
 import com.yanzhenjie.permission.AndPermission;
 import com.yanzhenjie.permission.runtime.Permission;
@@ -252,6 +258,10 @@ public class MainActivity extends ComponentActivity implements AdapterView.OnIte
         btRecord.setText("开始");
         isPause = false;
         isStart = false;
+
+        //stopForeground(MyService,true);
+        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        manager.cancel(MyService.NOTICE_ID);
     }
 
     private void doPlay() {
@@ -264,6 +274,7 @@ public class MainActivity extends ComponentActivity implements AdapterView.OnIte
             if (isPause) {
                 recordManager.resume();
             } else {
+                startService(new Intent(this, MyService.class));
                 recordManager.start();
             }
             btRecord.setText("暂停");

@@ -7,13 +7,20 @@ import android.os.Environment;
 import android.os.SystemClock;
 import android.util.Log;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Locale;
 
 public class Logger {
     private static final String PRE = "^_^";
     private static final String TAG = Logger.class.getSimpleName();
     private static final int LOG_LENGTH_LIMITATION = 4000;
+
+    public static String CacheLongLongFileName = "";
 
     public static boolean IsDebug = true;
 
@@ -154,7 +161,29 @@ public class Logger {
      */
     @TargetApi(Build.VERSION_CODES.KITKAT)
     private static void cacheLongLog(String tag, String logContent, Throwable throwable) {
+        if (CacheLongLongFileName != ""){
+            File file = new File(CacheLongLongFileName);
+            if (!file.exists()) {
+                try {
+                    //在指定的文件夹中创建文件
+                    file.createNewFile();
+                } catch (Exception e) {
+                    return;
+                }
+            }
 
+            try {
+                FileWriter filerWriter = new FileWriter(file, true);// 后面这个参数代表是不是要接上文件中原来的数据，不进行覆盖
+                String time = (new SimpleDateFormat("yyyyMMdd_HH_mm_ss", Locale.SIMPLIFIED_CHINESE)).format(new Date(System.currentTimeMillis()));;
+                BufferedWriter bufWriter = new BufferedWriter(filerWriter);
+                bufWriter.write(time+ "\t" + logContent);
+                bufWriter.newLine();
+                bufWriter.close();
+                filerWriter.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     /**

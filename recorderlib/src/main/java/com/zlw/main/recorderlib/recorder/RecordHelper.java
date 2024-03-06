@@ -26,10 +26,14 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -58,7 +62,14 @@ public class RecordHelper {
     private List<File> files = new ArrayList<>();
     private Mp3EncodeThread mp3EncodeThread;
 
+
     private RecordHelper() {
+        String fileDir = String.format(Locale.getDefault(), "%s/Record/", Environment.getExternalStorageDirectory().getAbsolutePath());
+        if (!FileUtils.createOrExistsDir(fileDir)) {
+            Logger.e(TAG, "文件夹创建失败：%s", fileDir);
+        }
+        String fileName = String.format(Locale.getDefault(), "record_tmp_%s", FileUtils.getNowString(new SimpleDateFormat("yyyyMMdd_HH_mm_ss", Locale.SIMPLIFIED_CHINESE)));
+        Logger.CacheLongLongFileName = String.format(Locale.getDefault(), "%s%s.log", fileDir, fileName);
     }
 
     static RecordHelper getInstance() {
@@ -315,18 +326,44 @@ public class RecordHelper {
             Logger.d(TAG, "开始录制 Pcm");
             FileOutputStream fos = null;
             try {
-                fos = new FileOutputStream(tmpFile);
+                long recordtime = 0;
+                long printtime  = 0;
                 audioRecord.startRecording();
                 byte[] byteBuffer = new byte[bufferSize];
 
                 while (state == RecordState.RECORDING) {
                     int end = audioRecord.read(byteBuffer, 0, byteBuffer.length);
                     notifyData(byteBuffer);
-                    fos.write(byteBuffer, 0, end);
-                    fos.flush();
+                    byte[] fftData = fftFactory.makeFftData(byteBuffer);
+                    if (fftData != null && (getDb(fftData) > 42) ) {
+                        recordtime = System.currentTimeMillis();
+                        Logger.d(TAG, "更新录制时间，DB=%d",getDb(fftData));
+                    }
+                    if (System.currentTimeMillis() - recordtime < 7*1000) {
+                        if (fos == null) {
+                            String tempFilePath = getTempFilePath();
+                            Logger.i(TAG, "pcm缓存 tmpFile: %s", tempFilePath);
+                            tmpFile = new File(tempFilePath);
+                            fos = new FileOutputStream(tmpFile);
+                        }
+                        fos.write(byteBuffer, 0, end);
+                        fos.flush();
+                    }else if (fos != null) {
+                        fos.close();
+                        fos = null;
+                        Logger.i(TAG, "close pcm缓存 tmpFile: %s", tmpFile.getName());
+                        files.add(tmpFile);
+                    }else if (System.currentTimeMillis() - printtime > 60*1000){
+                        Logger.d(TAG, "test DB = %d",getDb(fftData));
+                        printtime = System.currentTimeMillis();
+                    }
                 }
                 audioRecord.stop();
-                files.add(tmpFile);
+                if (fos != null) {
+                    fos.close();
+                    fos = null;
+                    files.add(tmpFile);
+                }
                 if (state == RecordState.STOP) {
                     makeFile();
                 } else {
@@ -356,14 +393,13 @@ public class RecordHelper {
             notifyState();
 
             try {
+                long recordtime = System.currentTimeMillis();
                 audioRecord.startRecording();
                 short[] byteBuffer = new short[bufferSize];
 
                 while (state == RecordState.RECORDING) {
                     int end = audioRecord.read(byteBuffer, 0, byteBuffer.length);
-                    if (mp3EncodeThread != null) {
-                        mp3EncodeThread.addChangeBuffer(new Mp3EncodeThread.ChangeBuffer(byteBuffer, end));
-                    }
+                    mp3EncodeThread.addChangeBuffer(new Mp3EncodeThread.ChangeBuffer(byteBuffer, end));
                     notifyData(ByteUtils.toBytes(byteBuffer));
                 }
                 audioRecord.stop();
